@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 680">
+<rect width="680" height="680" fill="#0a0d12" rx="120"/>
+<polygon points="340,60 620,340 340,620 60,340" fill="none" stroke="#e8c84a" stroke-width="6"/>
+<polygon points="340,140 540,340 340,540 140,340" fill="#e8c84a" opacity="0.08"/>
+<polyline points="180,220 140,340 180,460" fill="none" stroke="#e8c84a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="500,220 540,340 500,460" fill="none" stroke="#e8c84a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="180" y1="255" x2="260" y2="255" stroke="#e8c84a" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+<line x1="180" y1="425" x2="260" y2="425" stroke="#e8c84a" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+<line x1="260" y1="255" x2="260" y2="340" stroke="#e8c84a" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+<line x1="260" y1="425" x2="260" y2="340" stroke="#e8c84a" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+<line x1="260" y1="340" x2="310" y2="340" stroke="#e8c84a" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+<line x1="500" y1="255" x2="420" y2="255" stroke="#e8c84a" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+<line x1="500" y1="425" x2="420" y2="425" stroke="#e8c84a" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+<line x1="420" y1="255" x2="420" y2="340" stroke="#e8c84a" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+<line x1="420" y1="425" x2="420" y2="340" stroke="#e8c84a" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+<line x1="420" y1="340" x2="370" y2="340" stroke="#e8c84a" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+<circle cx="340" cy="340" r="16" fill="#e8c84a"/>
+<circle cx="340" cy="340" r="8" fill="#0a0d12"/>
+<circle cx="340" cy="60" r="7" fill="#e8c84a"/>
+<circle cx="620" cy="340" r="7" fill="#e8c84a"/>
+<circle cx="340" cy="620" r="7" fill="#e8c84a"/>
+<circle cx="60" cy="340" r="7" fill="#e8c84a"/>
+</svg>
