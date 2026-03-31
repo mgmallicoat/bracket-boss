@@ -186,6 +186,7 @@ function buildBracket(poolStandings, settings) {
 function makeBracketRound(teams, byes) {
   const n = teams.length;
   if (n === 0) return [];
+  if (n === 1) return [[teams[0], null, false]];
 
   // Find next power of 2 >= n to determine bracket size
   let size = 1;
@@ -198,6 +199,7 @@ function makeBracketRound(teams, byes) {
 
   // Pair top half vs bottom half recursively (standard bracket order)
   function buildOrder(sz) {
+    if (sz <= 1) return [0];
     if (sz === 2) return [0, 1];
     const prev = buildOrder(sz / 2);
     const result = [];
@@ -496,44 +498,41 @@ function VisualBracket({ matchups, seededTeams, standings, yourTeam, title, colo
   const svgH = rounds[0].length * (SLOT_H + V_PAD) + V_PAD;
 
   if (isPortrait) {
-    // Portrait: vertical flow, rounds stack top to bottom
-    const RND_H = 80;
-    const SLOT_PW = 140;
-    const H_PAD = 12;
-    const totalW = rounds[0].length * (SLOT_PW + H_PAD) + H_PAD;
-    const totalH = numRounds * (RND_H + 32) + 32;
-
+    // Portrait: each round is a row of cards stacked top to bottom
+    const roundLabels = ["Round 1","Quarterfinals","Semifinals","Finals","Championship"];
     return (
-      <div style={{overflowX:"auto",marginBottom:20}}>
+      <div style={{marginBottom:20}}>
         {title && <div className={`bracket-section-title ${color==="gold"?"gold-title":"silver-title"}`} style={{marginBottom:12}}>{title}</div>}
-        <div style={{position:"relative",width:totalW,height:totalH,minWidth:280}}>
-          {rounds.map((round, ri) => {
-            const y = ri * (RND_H + 32) + 16;
-            const count = round.length;
-            const spacing = totalW / count;
-            return round.map(([t1, t2, isBye], mi) => {
-              const x = spacing * mi + H_PAD;
-              const l1 = teamLabel(t1);
-              const l2 = t2 ? teamLabel(t2) : null;
-              const isChamp = ri === numRounds - 1;
-              return (
-                <div key={`${ri}-${mi}`} style={{
-                  position:"absolute", left:x, top:y,
-                  width:SLOT_PW, background:"var(--surface)",
-                  border:`1px solid ${isChamp?"var(--accent)":"var(--border)"}`,
-                  borderRadius:6, overflow:"hidden", fontSize:11
-                }}>
-                  {isChamp && <div style={{background:"rgba(232,200,74,.15)",padding:"2px 6px",fontSize:9,color:"var(--accent)",fontFamily:"var(--fm)",letterSpacing:1}}>🏆 CHAMPION</div>}
-                  {isBye && <div style={{background:"rgba(34,197,94,.1)",padding:"2px 6px",fontSize:9,color:"var(--green)",fontFamily:"var(--fm)",letterSpacing:1}}>BYE</div>}
-                  {l1 && <SlotLine label={l1} />}
-                  {l2 && <SlotLine label={l2} />}
-                  {!l1 && <SlotLine label={null} />}
-                  {!l2 && !isBye && <SlotLine label={null} />}
-                </div>
-              );
-            });
-          })}
-        </div>
+        {rounds.map((round, ri) => {
+          const isLast = ri === numRounds - 1;
+          const label = isLast ? "🏆 Championship" : (roundLabels[ri] || `Round ${ri+1}`);
+          return (
+            <div key={ri} style={{marginBottom:16}}>
+              <div style={{fontSize:10,color:"var(--muted)",fontFamily:"var(--fm)",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{label}</div>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {round.map(([t1,t2,isBye],mi) => {
+                  const l1 = teamLabel(t1);
+                  const l2 = t2 ? teamLabel(t2) : null;
+                  return (
+                    <div key={mi} style={{
+                      background:"var(--surface)",
+                      border:`1px solid ${isLast?"var(--accent)":"var(--border)"}`,
+                      borderRadius:7, overflow:"hidden",
+                      boxShadow: isLast ? "0 0 10px rgba(232,200,74,.15)" : "none"
+                    }}>
+                      {isBye && <div style={{background:"rgba(34,197,94,.1)",padding:"2px 8px",fontSize:9,color:"var(--green)",fontFamily:"var(--fm)",letterSpacing:1}}>BYE</div>}
+                      {l1 ? <SlotLine label={l1}/> : <SlotLine label={null}/>}
+                      {!isBye && (l2 ? <SlotLine label={l2}/> : <SlotLine label={null}/>)}
+                    </div>
+                  );
+                })}
+              </div>
+              {ri < numRounds - 1 && (
+                <div style={{textAlign:"center",color:"var(--border)",fontSize:16,marginTop:4}}>↓</div>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -654,7 +653,7 @@ function TeamTag({ name, isYours, onClaim, onRemove, onRename }) {
 // ─── App ─────────────────────────────────────────────────────────────────────
 export default function App() {
   const [tab, setTab] = useState("setup");
-  const [pools, setPools] = useState([{ name:"Pool A", teams:[], newTeam:"" }]);
+  const [pools, setPools] = useState([{ name:"", teams:[], newTeam:"" }]);
   const [yourTeam, setYourTeam] = useState("");
   const [poolGames, setPoolGames] = useState({});
   const [activePool, setActivePool] = useState(0);
@@ -667,6 +666,7 @@ export default function App() {
   const dragTb = useRef(null);
   const [bracketSettings, setBracketSettings] = useState({ format:"single", elim:"single", byes:0, goldByes:0, silverByes:0, goldCount:4 });
   const [scenarios, setScenarios] = useState([]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     const style = document.createElement("style");
@@ -910,10 +910,10 @@ export default function App() {
     });
   }
 
+  const totalTeams = pools.reduce((s,p)=>s+p.teams.length,0);
   const standings = allStandings();
   const bracket = buildBracket(standings, bracketSettings);
   const { seededTeams } = bracket;
-  const totalTeams = pools.reduce((s,p)=>s+p.teams.length,0);
 
   const hasHypo = Object.values(poolGames).flat().some(g =>
     !g.locked && g.home && g.away && g.homeScore !== "" && g.awayScore !== ""
@@ -931,12 +931,20 @@ export default function App() {
         {yourTeam && <div className="your-badge">🏆 {yourTeam}</div>}
         {hydrated && (
           <button className="btn btn-ghost" style={{marginLeft: yourTeam ? "8px" : "auto", fontSize:10, padding:"4px 10px", opacity:.5}}
-            onClick={async () => {
+            onClick={() => {
               if (!confirm("Clear all data and start over?")) return;
-              setPools([{ name:"Pool A", teams:[], newTeam:"" }]);
-              setYourTeam("");
-              setPoolGames({});
               try { localStorage.removeItem("bracket-boss-state"); } catch(e) {}
+              setTimeout(() => {
+                setPools([{ name:"", teams:[], newTeam:"" }]);
+                setYourTeam("");
+                setPoolGames({});
+                setScenarios([]);
+                setSavedTournaments([]);
+                setTiebreakers(DEFAULT_TIEBREAKERS);
+                setBracketSettings({ format:"single", elim:"single", byes:0, goldByes:0, silverByes:0, goldCount:4 });
+                setShowAdvanced(false);
+                setTab("setup");
+              }, 50);
             }}>
             ↺ Reset
           </button>
@@ -992,17 +1000,20 @@ export default function App() {
             <div className="setup-grid" style={{gridTemplateColumns: pools.length === 1 ? "1fr" : undefined}}>
               {pools.map((pool,i) => (
                 <div className="card" key={i} style={{marginBottom:0}}>
-                  <div className="ctitle" style={{color:POOL_COLORS[i]}}>
-                    ◈ <input
-                      className="input"
-                      style={{display:"inline",width:"auto",maxWidth:160,padding:"2px 8px",fontSize:17,fontFamily:"var(--fd)",letterSpacing:2,color:POOL_COLORS[i],background:"transparent",border:"1px solid transparent",borderRadius:4}}
-                      value={pool.name}
-                      onChange={e=>setPools(p=>p.map((pl,idx)=>idx===i?{...pl,name:e.target.value}:pl))}
-                      onFocus={e=>e.target.style.borderColor=POOL_COLORS[i]}
-                      onBlur={e=>e.target.style.borderColor="transparent"}
-                    />
-                    {pools.length>1 && <button className="btn-danger" style={{marginLeft:"auto",fontSize:12}} onClick={()=>setPools(p=>p.filter((_,idx)=>idx!==i))}>✕</button>}
-                  </div>
+                  {pools.length > 1 && (
+                    <div className="ctitle" style={{color:POOL_COLORS[i]}}>
+                      ◈ <input
+                        className="input"
+                        style={{display:"inline",width:"auto",maxWidth:160,padding:"2px 8px",fontSize:17,fontFamily:"var(--fd)",letterSpacing:2,color:POOL_COLORS[i],background:"transparent",border:"1px solid transparent",borderRadius:4}}
+                        placeholder={POOL_NAMES[i]}
+                        value={pool.name}
+                        onChange={e=>setPools(p=>p.map((pl,idx)=>idx===i?{...pl,name:e.target.value}:pl))}
+                        onFocus={e=>e.target.style.borderColor=POOL_COLORS[i]}
+                        onBlur={e=>e.target.style.borderColor="transparent"}
+                      />
+                      <button className="btn-danger" style={{marginLeft:"auto",fontSize:12}} onClick={()=>setPools(p=>p.filter((_,idx)=>idx!==i))}>✕</button>
+                    </div>
+                  )}
                   <div className="irow">
                     <input className="input" placeholder="Add team..." value={pool.newTeam}
                       onChange={e=>setPools(p=>p.map((pl,idx)=>idx===i?{...pl,newTeam:e.target.value}:pl))}
@@ -1027,9 +1038,15 @@ export default function App() {
               ))}
             </div>
 
-            {pools.length<4 && (
-              <button className="btn btn-ghost" style={{marginTop:14}} onClick={addPool}>+ Add Pool</button>
-            )}
+            <div style={{marginTop:14}}>
+              <button className="btn btn-ghost" style={{fontSize:11,opacity:.6}}
+                onClick={()=>setShowAdvanced(s=>!s)}>
+                {showAdvanced ? "▾ Advanced" : "▸ Advanced"} (multiple pools)
+              </button>
+              {showAdvanced && pools.length<4 && (
+                <button className="btn btn-ghost" style={{marginLeft:8,fontSize:11}} onClick={addPool}>+ Add Pool</button>
+              )}
+            </div>
             {totalTeams>=2 && (
               <div className="alert alert-info" style={{marginTop:16}}>
                 Ready — head to <strong>Scores</strong> to enter pool play games in order.
@@ -1109,9 +1126,10 @@ export default function App() {
                       <span style={{fontSize:12,color:"var(--muted)"}}>Top</span>
                       <input type="text" inputMode="numeric" className="bs-select" style={{width:48,textAlign:"center"}}
                         value={bracketSettings.goldCount}
-                        onChange={e=>{
-                          const v=parseInt(e.target.value.replace(/[^0-9]/g,""));
-                          setBracketSettings(s=>({...s,goldCount:Math.min(isNaN(v)?1:Math.max(1,v),seededTeams.length-1)}));
+                        onChange={e=>setBracketSettings(s=>({...s,goldCount:e.target.value.replace(/[^0-9]/g,"")}))}
+                        onBlur={e=>{
+                          const v=parseInt(e.target.value);
+                          setBracketSettings(s=>({...s,goldCount:Math.min(isNaN(v)?1:Math.max(1,v),totalTeams-1)}));
                         }}
                       />
                       <span style={{fontSize:12,color:"var(--accent)"}}>Gold</span>
@@ -1126,12 +1144,13 @@ export default function App() {
                       <span style={{fontSize:12,color:"var(--muted)"}}>Top</span>
                       <input type="text" inputMode="numeric" className="bs-select" style={{width:48,textAlign:"center"}}
                         value={bracketSettings.byes}
-                        onChange={e=>{
-                          const v=parseInt(e.target.value.replace(/[^0-9]/g,""));
-                          setBracketSettings(s=>({...s,byes:Math.min(isNaN(v)?0:Math.max(0,v),seededTeams.length-2)}));
+                        onChange={e=>setBracketSettings(s=>({...s,byes:e.target.value.replace(/[^0-9]/g,"")}))}
+                        onBlur={e=>{
+                          const v=parseInt(e.target.value);
+                          setBracketSettings(s=>({...s,byes:Math.min(isNaN(v)?0:Math.max(0,v),totalTeams-2)}));
                         }}
                       />
-                      <span style={{fontSize:12,color:"var(--muted)"}}>{bracketSettings.byes===0?"(none)":"get byes"}</span>
+                      <span style={{fontSize:12,color:"var(--muted)"}}>{bracketSettings.byes===0||bracketSettings.byes===""?"(none)":"get byes"}</span>
                     </div>
                   </div>
                 ) : (
@@ -1142,24 +1161,26 @@ export default function App() {
                         <span style={{fontSize:11,color:"var(--accent)",width:44,flexShrink:0}}>Gold top</span>
                         <input type="text" inputMode="numeric" className="bs-select" style={{width:44,textAlign:"center"}}
                           value={bracketSettings.goldByes}
-                          onChange={e=>{
-                            const v=parseInt(e.target.value.replace(/[^0-9]/g,""));
+                          onChange={e=>setBracketSettings(s=>({...s,goldByes:e.target.value.replace(/[^0-9]/g,"")}))}
+                          onBlur={e=>{
+                            const v=parseInt(e.target.value);
                             setBracketSettings(s=>({...s,goldByes:Math.min(isNaN(v)?0:Math.max(0,v),Math.max(0,s.goldCount-2))}));
                           }}
                         />
-                        <span style={{fontSize:11,color:"var(--muted)"}}>{bracketSettings.goldByes===0?"(none)":"byes"}</span>
+                        <span style={{fontSize:11,color:"var(--muted)"}}>{bracketSettings.goldByes===0||bracketSettings.goldByes===""?"(none)":"byes"}</span>
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:6}}>
                         <span style={{fontSize:11,color:"#9ca3af",width:44,flexShrink:0}}>Silver top</span>
                         <input type="text" inputMode="numeric" className="bs-select" style={{width:44,textAlign:"center"}}
                           value={bracketSettings.silverByes}
-                          onChange={e=>{
-                            const v=parseInt(e.target.value.replace(/[^0-9]/g,""));
-                            const sc=seededTeams.length-bracketSettings.goldCount;
+                          onChange={e=>setBracketSettings(s=>({...s,silverByes:e.target.value.replace(/[^0-9]/g,"")}))}
+                          onBlur={e=>{
+                            const v=parseInt(e.target.value);
+                            const sc=totalTeams-bracketSettings.goldCount;
                             setBracketSettings(s=>({...s,silverByes:Math.min(isNaN(v)?0:Math.max(0,v),Math.max(0,sc-2))}));
                           }}
                         />
-                        <span style={{fontSize:11,color:"var(--muted)"}}>{bracketSettings.silverByes===0?"(none)":"byes"}</span>
+                        <span style={{fontSize:11,color:"var(--muted)"}}>{bracketSettings.silverByes===0||bracketSettings.silverByes===""?"(none)":"byes"}</span>
                       </div>
                     </div>
                   </div>
@@ -1211,10 +1232,18 @@ export default function App() {
                           const isHypo = scored && !g.locked;
                           const homeIsYours = g.home === yourTeam;
                           const awayIsYours = g.away === yourTeam;
-                          // Opponents already used in other games (so we can still allow same matchup here)
-                          const usedPairs = games
-                            .filter((_,i2)=>i2!==idx && games[i2].home && games[i2].away)
-                            .map(gg=>[gg.home,gg.away].sort().join("__"));
+
+                          // Count games per team (excluding this game)
+                          const gameCounts = {};
+                          pool.teams.forEach(t => { gameCounts[t] = 0; });
+                          games.forEach((gg, i2) => {
+                            if (i2 === idx) return;
+                            if (gg.home) gameCounts[gg.home] = (gameCounts[gg.home] || 0) + 1;
+                            if (gg.away) gameCounts[gg.away] = (gameCounts[gg.away] || 0) + 1;
+                          });
+                          // Available = teams with < 2 games, plus whatever is already selected
+                          const availableHome = pool.teams.filter(t => t === g.home || (gameCounts[t] || 0) < 2);
+                          const availableAway = pool.teams.filter(t => t === g.away || (gameCounts[t] || 0) < 2);
 
                           return (
                             <div key={idx} className={`game-row ${g.locked?"locked":scored?"scored":""} ${isHypo?"hypo":""}`}>
@@ -1229,7 +1258,7 @@ export default function App() {
                                 value={g.home} disabled={g.locked}
                                 onChange={e=>updateGame(pi,idx,"home",e.target.value)}>
                                 <option value="">— Team —</option>
-                                {pool.teams.map(t=><option key={t} value={t}>{t}</option>)}
+                                {availableHome.map(t=><option key={t} value={t}>{t}</option>)}
                               </select>
 
                               {/* Scores */}
@@ -1254,7 +1283,7 @@ export default function App() {
                                 value={g.away} disabled={g.locked}
                                 onChange={e=>updateGame(pi,idx,"away",e.target.value)}>
                                 <option value="">— Team —</option>
-                                {pool.teams.map(t=><option key={t} value={t}>{t}</option>)}
+                                {availableAway.map(t=><option key={t} value={t}>{t}</option>)}
                               </select>
 
                               {/* Actions: time + lock + delete */}
@@ -1361,10 +1390,6 @@ export default function App() {
                 ) : (
                   <VisualBracket matchups={bracket.firstRound} seededTeams={seededTeams} standings={standings} yourTeam={yourTeam} />
                 )}
-                <p className="footnote">
-                  Seeding interleaves pools (A1, B1, A2, B2…) to avoid same-pool rematches in round 1. Higher seed advances in projections.<br/>
-                  Tiebreakers: {tiebreakers.map(t=>t.label).join(" → ")}
-                </p>
               </>
             )}
           </div>
