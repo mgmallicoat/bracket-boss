@@ -24,7 +24,7 @@ const USSSA_TIEBREAKERS = [
   { id: "h2h_2",   label: "Head-to-Head Win % (2-team ties only)" },
   { id: "avg_ra",  label: "Avg. Runs Allowed" },
   { id: "avg_rd8", label: "Avg. Run Differential (max +8/game)" },
-];
+]; 
 
 const PG_TIEBREAKERS = [
   { id: "wp",    label: "Win %" },
